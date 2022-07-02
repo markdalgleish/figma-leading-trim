@@ -72,13 +72,6 @@ export default async function () {
       return;
     }
 
-    if (textNode.lineHeight.unit === "PERCENT") {
-      figma.notify(
-        "Percentage based line height values are not currently supported in this preview release."
-      );
-      return;
-    }
-
     if (!(textNode.fontName.family in fontMetrics)) {
       figma.notify(
         `The font "${textNode.fontName.family}" is not currently supported in this preview release.`
@@ -94,7 +87,9 @@ export default async function () {
       fontSize: textNode.fontSize,
       leading:
         textNode.lineHeight.unit !== "AUTO"
-          ? textNode.lineHeight.value
+          ? textNode.lineHeight.unit === "PERCENT"
+            ? textNode.fontSize * (textNode.lineHeight.value / 100)
+            : textNode.lineHeight.value
           : undefined,
       fontMetrics: fontMetrics[textNode.fontName.family],
     };

@@ -1,0 +1,79 @@
+{
+  "Arial": {
+    "capHeight": 1467,
+    "ascent": 1854,
+    "descent": -434,
+    "lineGap": 67,
+    "unitsPerEm": 2048
+  },
+  "SF Mono": {
+    "capHeight": 1443,
+    "ascent": 1950,
+    "descent": -494,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "SF Pro": {
+    "capHeight": 1443,
+    "ascent": 1950,
+    "descent": -494,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "SF Pro Display": {
+    "capHeight": 1443,
+    "ascent": 1950,
+    "descent": -494,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "SF Pro Rounded": {
+    "capHeight": 1443,
+    "ascent": 1950,
+    "descent": -494,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "SF Pro Text": {
+    "capHeight": 1443,
+    "ascent": 1950,
+    "descent": -494,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "Roboto": {
+    "capHeight": 1456,
+    "ascent": 1900,
+    "descent": -500,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "Segoe UI": {
+    "capHeight": 1434,
+    "ascent": 2210,
+    "descent": -514,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "Oxygen": {
+    "capHeight": 1468,
+    "ascent": 2103,
+    "descent": -483,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "Helvetica": {
+    "capHeight": 1469,
+    "ascent": 1577,
+    "descent": -471,
+    "lineGap": 0,
+    "unitsPerEm": 2048
+  },
+  "Helvetica Neue": {
+    "capHeight": 714,
+    "ascent": 952,
+    "descent": -213,
+    "lineGap": 28,
+    "unitsPerEm": 1000
+  }
+}

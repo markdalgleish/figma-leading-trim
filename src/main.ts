@@ -1,23 +1,11 @@
 import { loadFontsAsync } from "@create-figma-plugin/utilities";
 import { precomputeValues, FontMetrics } from "@capsizecss/core";
-import interFontMetrics from "@capsizecss/metrics/inter";
+import googleFontMetrics from "./metrics/googleFonts.json";
+import systemFontMetrics from "./metrics/systemFonts.json";
 
-const sfMetrics = {
-  capHeight: 1443,
-  ascent: 1950,
-  descent: -494,
-  lineGap: 0,
-  unitsPerEm: 2048,
-};
-
-// Hard coded for preview release
 const fontMetrics: Record<string, FontMetrics> = {
-  Inter: interFontMetrics,
-  "SF Mono": sfMetrics,
-  "SF Pro": sfMetrics,
-  "SF Pro Display": sfMetrics,
-  "SF Pro Rounded": sfMetrics,
-  "SF Pro Text": sfMetrics,
+  ...googleFontMetrics,
+  ...systemFontMetrics,
 };
 
 function isNodeOwned(node: SceneNode) {
@@ -74,7 +62,7 @@ export default async function () {
 
     if (!(textNode.fontName.family in fontMetrics)) {
       figma.notify(
-        `The font "${textNode.fontName.family}" is not currently supported in this preview release.`
+        `The font "${textNode.fontName.family}" is not currently supported.`
       );
       return;
     }

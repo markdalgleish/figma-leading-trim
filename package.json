@@ -1,7 +1,6 @@
 {
   "dependencies": {
     "@capsizecss/core": "^3.0.0",
-    "@capsizecss/metrics": "^0.2.0",
     "@create-figma-plugin/utilities": "^1.9.1"
   },
   "devDependencies": {

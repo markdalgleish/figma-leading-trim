@@ -1,7 +1,5 @@
 # figma-leading-trim
 
-> ⚠️ This is a preview release. The only fonts supported right now are Inter and SF Pro.
-
 Figma plugin for trimming text elements, removing space above capital letters and below the baseline.
 
 If you want to achieve the same behaviour in a browser, check out [Capsize.](https://seek-oss.github.io/capsize)

@@ -86,8 +86,15 @@ export default async function () {
       const capsizeValues = precomputeValues(options);
       const marginTop =
         parseFloat(capsizeValues.capHeightTrim) * textNode.fontSize;
+      const marginTopRounded = Math.round(marginTop);
+      const topRoundingDiff = marginTopRounded - marginTop;
+
       const marginBottom =
         parseFloat(capsizeValues.baselineTrim) * textNode.fontSize;
+      const marginBottomRounded = Math.round(marginBottom);
+      const bottomRoundingDiff = marginBottomRounded - marginBottom;
+
+      const roundingCorrection = (topRoundingDiff - bottomRoundingDiff) / 2;
 
       // Add new margins
       const parent = textNode.parent ?? figma.currentPage;
@@ -100,20 +107,23 @@ export default async function () {
       frame.name = " "; // This ensures a frame name is not visible in the UI
       frame.fills = [];
       frame.clipsContent = false; // Allows ascenders/descenders to be visible
-      frame.resize(textNode.width, textNode.height + marginTop + marginBottom);
+      frame.resize(
+        textNode.width,
+        textNode.height + marginTopRounded + marginBottomRounded
+      );
 
       if (isFirstRun) {
         frame.appendChild(textNode);
         frame.x = textNode.x;
-        frame.y = textNode.y - marginTop;
+        frame.y = textNode.y - marginTopRounded;
         parent.insertChild(index, frame);
       } else {
         frame.x = frame.x + textNode.x;
-        frame.y = frame.y + textNode.y - marginTop;
+        frame.y = frame.y + textNode.y - marginTopRounded;
       }
 
       textNode.x = 0;
-      textNode.y = marginTop;
+      textNode.y = marginTopRounded - roundingCorrection;
 
       return frame;
     }

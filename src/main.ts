@@ -44,8 +44,23 @@ export default async function () {
         return selectedNode;
       }
 
-      if (textNode.fontName === figma.mixed) {
+      const fontFamilies: Set<string> =
+        textNode.fontName === figma.mixed
+          ? new Set(
+              textNode
+                .getRangeAllFontNames(0, textNode.characters.length)
+                .map((fontName) => fontName.family)
+            )
+          : new Set([textNode.fontName.family]);
+
+      if (fontFamilies.size > 1) {
         figma.notify("Leading cannot be trimmed from text with mixed fonts.");
+        return selectedNode;
+      }
+
+      const fontFamily = Array.from(fontFamilies)[0];
+      if (!(fontFamily in fontMetrics)) {
+        figma.notify(`The font "${fontFamily}" is not currently supported.`);
         return selectedNode;
       }
 
@@ -57,13 +72,6 @@ export default async function () {
       if (textNode.lineHeight === figma.mixed) {
         figma.notify(
           "Leading cannot be trimmed from text with mixed line heights."
-        );
-        return selectedNode;
-      }
-
-      if (!(textNode.fontName.family in fontMetrics)) {
-        figma.notify(
-          `The font "${textNode.fontName.family}" is not currently supported.`
         );
         return selectedNode;
       }
@@ -80,7 +88,7 @@ export default async function () {
               ? textNode.fontSize * (textNode.lineHeight.value / 100)
               : textNode.lineHeight.value
             : undefined,
-        fontMetrics: fontMetrics[textNode.fontName.family],
+        fontMetrics: fontMetrics[fontFamily],
       };
 
       const capsizeValues = precomputeValues(options);

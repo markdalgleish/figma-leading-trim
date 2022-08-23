@@ -1,5 +1,16 @@
-import { loadFontsAsync } from "@create-figma-plugin/utilities";
-import { precomputeValues, FontMetrics } from "@capsizecss/core";
+import { FontMetrics, precomputeValues } from "@capsizecss/core";
+import {
+  loadFontsAsync,
+  on,
+  emit,
+  showUI,
+} from "@create-figma-plugin/utilities";
+import {
+  TrimSelectionHandler,
+  UpdateFontSizeHandler,
+  UpdateLineHeightHandler,
+  SelectionChangedHandler,
+} from "./types";
 import googleFontMetrics from "./metrics/googleFonts.json";
 import systemFontMetrics from "./metrics/systemFonts.json";
 
@@ -16,7 +27,44 @@ function markNodeAsOwned(node: SceneNode) {
   node.setPluginData("owned", "true");
 }
 
-export default async function () {
+function resolveTextNodeFromSelectedNode(
+  sceneNode: SceneNode
+): TextNode | undefined {
+  const textNode =
+    sceneNode.type === "TEXT"
+      ? sceneNode
+      : sceneNode.type === "FRAME" &&
+        isNodeOwned(sceneNode) &&
+        sceneNode.children.length === 1 &&
+        sceneNode.children[0].type === "TEXT"
+      ? sceneNode.children[0]
+      : undefined;
+
+  return textNode;
+}
+
+function resolveLineHeightFromTextNode(textNode: TextNode): number | undefined {
+  if (
+    textNode.lineHeight === figma.mixed ||
+    textNode.fontSize === figma.mixed
+  ) {
+    return undefined;
+  }
+
+  return textNode.lineHeight.unit !== "AUTO"
+    ? textNode.lineHeight.unit === "PERCENT"
+      ? textNode.fontSize * (textNode.lineHeight.value / 100)
+      : textNode.lineHeight.value
+    : undefined;
+}
+
+async function trimSelectedNodes({
+  fontSize,
+  lineHeight,
+}: {
+  fontSize?: number;
+  lineHeight?: LineHeight;
+} = {}) {
   await loadFontsAsync(
     figma.currentPage.selection.reduce(
       (acc, selection) => [
@@ -30,15 +78,7 @@ export default async function () {
 
   figma.currentPage.selection = figma.currentPage.selection.map(
     (selectedNode): SceneNode => {
-      const textNode =
-        selectedNode.type === "TEXT"
-          ? selectedNode
-          : selectedNode.type === "FRAME" &&
-            isNodeOwned(selectedNode) &&
-            selectedNode.children.length === 1 &&
-            selectedNode.children[0].type === "TEXT"
-          ? selectedNode.children[0]
-          : null;
+      const textNode = resolveTextNodeFromSelectedNode(selectedNode);
 
       if (!textNode) {
         return selectedNode;
@@ -80,14 +120,27 @@ export default async function () {
         textNode.textAutoResize = "HEIGHT";
       }
 
+      let frameYBeforeUpdate: number | null = null;
+      const isUpdatingLineHeight = lineHeight;
+
+      if (fontSize || isUpdatingLineHeight) {
+        frameYBeforeUpdate =
+          textNode.parent?.type === "FRAME" && isNodeOwned(textNode.parent)
+            ? textNode.parent.y
+            : null;
+      }
+
+      if (fontSize) {
+        textNode.fontSize = fontSize;
+      }
+
+      if (isUpdatingLineHeight) {
+        textNode.lineHeight = lineHeight;
+      }
+
       const options = {
         fontSize: textNode.fontSize,
-        leading:
-          textNode.lineHeight.unit !== "AUTO"
-            ? textNode.lineHeight.unit === "PERCENT"
-              ? textNode.fontSize * (textNode.lineHeight.value / 100)
-              : textNode.lineHeight.value
-            : undefined,
+        leading: resolveLineHeightFromTextNode(textNode),
         fontMetrics: fontMetrics[fontFamily],
       };
 
@@ -120,7 +173,7 @@ export default async function () {
         parent.insertChild(index, frame);
       } else {
         frame.x = frame.x + textNode.x;
-        frame.y = frame.y + textNode.y - marginTop;
+        frame.y = frameYBeforeUpdate ?? frame.y + textNode.y - marginTop;
       }
 
       textNode.x = 0;
@@ -129,6 +182,92 @@ export default async function () {
       return frame;
     }
   );
+}
 
-  figma.closePlugin();
+const lineHeightDelimiter = "|";
+
+function stringifyLineHeight(lineHeight: LineHeight): string {
+  return [
+    lineHeight.unit,
+    "value" in lineHeight ? String(lineHeight.value) : null,
+  ]
+    .filter((value) => value !== null)
+    .join(lineHeightDelimiter);
+}
+
+function parseLineHeight(lineHeight: string): LineHeight {
+  const [unit, value] = lineHeight.split(lineHeightDelimiter);
+
+  if (unit === "AUTO") {
+    return { unit: "AUTO" };
+  }
+
+  if (unit === "PERCENT" || unit === "PIXELS") {
+    return { unit, value: parseInt(value) };
+  }
+
+  throw new Error("Invalid line height string");
+}
+
+function getSelectionData() {
+  const fontSizes = new Set<number>();
+  const stringifiedLineHeights = new Set<string>();
+  let hasTextSelected = false;
+
+  figma.currentPage.selection.forEach((selectedNode) => {
+    const textNode = resolveTextNodeFromSelectedNode(selectedNode);
+
+    if (textNode) {
+      hasTextSelected = true;
+
+      if (textNode.fontSize !== figma.mixed) {
+        fontSizes.add(textNode.fontSize);
+      }
+
+      if (textNode.lineHeight !== figma.mixed) {
+        stringifiedLineHeights.add(stringifyLineHeight(textNode.lineHeight));
+      }
+    }
+  });
+
+  const fontSize = fontSizes.size === 1 ? Array.from(fontSizes)[0] : undefined;
+  const lineHeight =
+    stringifiedLineHeights.size === 1
+      ? parseLineHeight(Array.from(stringifiedLineHeights)[0])
+      : undefined;
+
+  return {
+    fontSize,
+    lineHeight,
+    hasTextSelected,
+  };
+}
+
+export default function () {
+  on<TrimSelectionHandler>("TRIM_SELECTION", () => trimSelectedNodes());
+
+  on<UpdateLineHeightHandler>(
+    "UPDATE_LINE_HEIGHT_FOR_SELECTION",
+    (lineHeight) => {
+      trimSelectedNodes({ lineHeight });
+    }
+  );
+
+  on<UpdateFontSizeHandler>("UPDATE_FONT_SIZE_FOR_SELECTION", (fontSize) => {
+    trimSelectedNodes({ fontSize });
+  });
+
+  figma.on("selectionchange", () => {
+    const { fontSize, lineHeight, hasTextSelected } = getSelectionData();
+    emit<SelectionChangedHandler>("SELECTION_CHANGED", {
+      fontSize,
+      lineHeight,
+      hasTextSelected,
+    });
+  });
+
+  showUI(
+    { width: 240, height: 108, title: "Leading Trim" },
+    getSelectionData()
+  );
 }

@@ -18,7 +18,7 @@ import {
   UpdateLineHeightHandler,
 } from "./types";
 
-function serializeLineHeight(lineHeight: LineHeight) {
+function stringifyLineHeight(lineHeight: LineHeight) {
   if (lineHeight.unit === "AUTO") {
     return "Auto";
   }
@@ -26,7 +26,7 @@ function serializeLineHeight(lineHeight: LineHeight) {
   return `${lineHeight.value}${lineHeight.unit === "PERCENT" ? "%" : ""}`;
 }
 
-function deserializeLineHeight(lineHeightString: string): LineHeight | null {
+function parseLineHeight(lineHeightString: string): LineHeight | null {
   if (lineHeightString === "Auto") {
     return { unit: "AUTO" } as const;
   }
@@ -45,16 +45,26 @@ function deserializeLineHeight(lineHeightString: string): LineHeight | null {
 export default render(function Plugin({
   fontSize: initialFontSize,
   lineHeight: initialLineHeight,
+  autoLineHeight: initialAutoLineHeight,
   hasTextSelected: initialHasTextSelected,
+  hasSupportedFontSelected: initialHasSupportedFontSelected,
 }: SelectionData) {
   const [fontSizeFieldValue, setFontSizeFieldValue] = useState<string>(
     initialFontSize ? String(initialFontSize) : ""
   );
   const [lineHeightFieldValue, setLineHeightFieldValue] = useState<string>(() =>
-    initialLineHeight ? serializeLineHeight(initialLineHeight) : ""
+    initialLineHeight ? stringifyLineHeight(initialLineHeight) : ""
+  );
+  const [isLineHeightFieldFocused, setIsLineHeightFieldFocused] =
+    useState(false);
+  const [autoLineHeightPlaceholder, setAutoLineHeightPlaceholder] = useState(
+    initialAutoLineHeight ? String(initialAutoLineHeight) : ""
   );
   const [hasTextSelected, setHasTextSelected] = useState(
     initialHasTextSelected
+  );
+  const [hasSupportedFontSelected, setHasSupportedFontSelected] = useState(
+    initialHasSupportedFontSelected
   );
 
   const handleTrimButtonClick = useCallback(function () {
@@ -64,12 +74,22 @@ export default render(function Plugin({
   useEffect(() => {
     on<SelectionChangedHandler>(
       "SELECTION_CHANGED",
-      ({ fontSize, lineHeight, hasTextSelected }) => {
+      ({
+        fontSize,
+        lineHeight,
+        autoLineHeight,
+        hasTextSelected,
+        hasSupportedFontSelected,
+      }) => {
         setFontSizeFieldValue(fontSize ? String(fontSize) : "");
         setLineHeightFieldValue(
-          lineHeight ? serializeLineHeight(lineHeight) : ""
+          lineHeight ? stringifyLineHeight(lineHeight) : ""
         );
         setHasTextSelected(hasTextSelected);
+        setHasSupportedFontSelected(hasSupportedFontSelected);
+        setAutoLineHeightPlaceholder(
+          autoLineHeight ? String(autoLineHeight) : ""
+        );
       }
     );
   }, []);
@@ -80,19 +100,21 @@ export default render(function Plugin({
       <Columns>
         <div
           onKeyDown={(event) => {
-            // We need this event handler attached to a parent div
-            // because TextBox doesn't support the onKeyDown event.
+            // We need this onKeyDown handler attached to a parent div
+            // because Textbox doesn't support the onKeyDown event.
             if (event.key === "ArrowUp" || event.key === "ArrowDown") {
               event.preventDefault();
 
               if (
                 event.target instanceof HTMLInputElement &&
-                /^[1-9][0-9]?$/.test(event.target.value)
+                /^[1-9][0-9]*$/.test(event.target.value)
               ) {
-                const newFontSize =
+                const newFontSize = Math.max(
+                  1,
                   parseInt(event.target.value) +
-                  (event.shiftKey ? 10 : 1) *
-                    (event.key === "ArrowDown" ? -1 : 1);
+                    (event.shiftKey ? 10 : 1) *
+                      (event.key === "ArrowDown" ? -1 : 1)
+                );
                 setFontSizeFieldValue(String(newFontSize));
                 emit<UpdateFontSizeHandler>(
                   "UPDATE_FONT_SIZE_FOR_SELECTION",
@@ -103,11 +125,12 @@ export default render(function Plugin({
           }}
         >
           <Textbox
+            disabled={!hasSupportedFontSelected}
             onInput={(event) => {
               setFontSizeFieldValue(event.currentTarget.value);
             }}
             validateOnBlur={(value) => {
-              if (!/^[1-9][0-9]?$/.test(value)) {
+              if (!/^[1-9][0-9]*$/.test(value)) {
                 return false;
               }
 
@@ -123,25 +146,39 @@ export default render(function Plugin({
           />
         </div>
         <div
+          onFocusCapture={(event) => {
+            // We need this onFocusCapture handler attached to a parent div
+            // because Textbox doesn't support the onFocus event.
+            if (event.target instanceof HTMLInputElement) {
+              if (event.target.value === "Auto") {
+                setIsLineHeightFieldFocused(true);
+                setLineHeightFieldValue("");
+              }
+            }
+          }}
           onKeyDown={(event) => {
             // We need this event handler attached to a parent div
-            // because TextBox doesn't support the onKeyDown event.
+            // because Textbox doesn't support the onKeyDown event.
             if (event.key === "ArrowUp" || event.key === "ArrowDown") {
               event.preventDefault();
 
               if (event.target instanceof HTMLInputElement) {
-                const parsedLineHeight = deserializeLineHeight(
-                  event.target.value
+                const parsedLineHeight = parseLineHeight(
+                  event.target.value === "" && autoLineHeightPlaceholder
+                    ? autoLineHeightPlaceholder
+                    : event.target.value
                 );
                 if (parsedLineHeight && parsedLineHeight.unit !== "AUTO") {
                   const newLineHeight = {
                     ...parsedLineHeight,
-                    value:
+                    value: Math.max(
+                      1,
                       parsedLineHeight.value +
-                      (event.shiftKey ? 10 : 1) *
-                        (event.key === "ArrowDown" ? -1 : 1),
+                        (event.shiftKey ? 10 : 1) *
+                          (event.key === "ArrowDown" ? -1 : 1)
+                    ),
                   };
-                  setLineHeightFieldValue(serializeLineHeight(newLineHeight));
+                  setLineHeightFieldValue(stringifyLineHeight(newLineHeight));
                   emit<UpdateLineHeightHandler>(
                     "UPDATE_LINE_HEIGHT_FOR_SELECTION",
                     newLineHeight
@@ -153,11 +190,30 @@ export default render(function Plugin({
         >
           <Textbox
             icon={<IconLineHeight32 />}
+            disabled={!hasSupportedFontSelected}
             onInput={(event) => {
               setLineHeightFieldValue(event.currentTarget.value);
             }}
             validateOnBlur={(value) => {
-              const parsedLineHeight = deserializeLineHeight(value);
+              setIsLineHeightFieldFocused(false);
+
+              const lowerCaseValue = value.toLocaleLowerCase().trim();
+
+              if (
+                lowerCaseValue === "" ||
+                lowerCaseValue === "a" ||
+                lowerCaseValue === "au" ||
+                lowerCaseValue === "aut" ||
+                lowerCaseValue === "auto"
+              ) {
+                emit<UpdateLineHeightHandler>(
+                  "UPDATE_LINE_HEIGHT_FOR_SELECTION",
+                  { unit: "AUTO" }
+                );
+                return "Auto";
+              }
+
+              const parsedLineHeight = parseLineHeight(value);
 
               if (parsedLineHeight === null) {
                 return false;
@@ -170,6 +226,11 @@ export default render(function Plugin({
 
               return true;
             }}
+            placeholder={
+              isLineHeightFieldFocused && lineHeightFieldValue === ""
+                ? autoLineHeightPlaceholder
+                : undefined
+            }
             value={lineHeightFieldValue}
           />
         </div>

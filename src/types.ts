@@ -3,7 +3,9 @@ import { EventHandler } from "@create-figma-plugin/utilities";
 export type SelectionData = {
   fontSize?: number;
   lineHeight?: LineHeight;
+  autoLineHeight?: number;
   hasTextSelected: boolean;
+  hasSupportedFontSelected: boolean;
 };
 
 export interface TrimSelectionHandler extends EventHandler {

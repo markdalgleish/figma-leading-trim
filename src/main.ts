@@ -1,4 +1,4 @@
-import { FontMetrics, precomputeValues } from "@capsizecss/core";
+import { precomputeValues } from "@capsizecss/core";
 import {
   loadFontsAsync,
   on,
@@ -10,14 +10,9 @@ import {
   UpdateFontSizeHandler,
   UpdateLineHeightHandler,
   SelectionChangedHandler,
+  SelectionData,
 } from "./types";
-import googleFontMetrics from "./metrics/googleFonts.json";
-import systemFontMetrics from "./metrics/systemFonts.json";
-
-const fontMetrics: Record<string, FontMetrics> = {
-  ...googleFontMetrics,
-  ...systemFontMetrics,
-};
+import { fontMetricsByFamilyName } from "./metrics/fontMetricsByFamilyName";
 
 function isNodeOwned(node: SceneNode) {
   return node.getPluginData("owned") === "true";
@@ -93,26 +88,30 @@ async function trimSelectedNodes({
             )
           : new Set([textNode.fontName.family]);
 
+      function notify(message: string) {
+        figma.notify(message, { timeout: 5000 });
+      }
+
       if (fontFamilies.size > 1) {
-        figma.notify("Leading cannot be trimmed from text with mixed fonts.");
+        notify("Leading cannot be trimmed from text with mixed fonts.");
         return selectedNode;
       }
 
       const fontFamily = Array.from(fontFamilies)[0];
-      if (!(fontFamily in fontMetrics)) {
-        figma.notify(`The font "${fontFamily}" is not currently supported.`);
+      if (!(fontFamily in fontMetricsByFamilyName)) {
+        notify(
+          `Leading cannot be trimmed from font "${fontFamily}" as it is not currently supported.`
+        );
         return selectedNode;
       }
 
       if (textNode.fontSize === figma.mixed) {
-        figma.notify("Leading cannot be trimmed from text with mixed sizes.");
+        notify("Leading cannot be trimmed from text with mixed sizes.");
         return selectedNode;
       }
 
       if (textNode.lineHeight === figma.mixed) {
-        figma.notify(
-          "Leading cannot be trimmed from text with mixed line heights."
-        );
+        notify("Leading cannot be trimmed from text with mixed line heights.");
         return selectedNode;
       }
 
@@ -141,7 +140,7 @@ async function trimSelectedNodes({
       const options = {
         fontSize: textNode.fontSize,
         leading: resolveLineHeightFromTextNode(textNode),
-        fontMetrics: fontMetrics[fontFamily],
+        fontMetrics: fontMetricsByFamilyName[fontFamily],
       };
 
       const capsizeValues = precomputeValues(options);
@@ -209,16 +208,28 @@ function parseLineHeight(lineHeight: string): LineHeight {
   throw new Error("Invalid line height string");
 }
 
-function getSelectionData() {
+function getSelectionData(): SelectionData {
   const fontSizes = new Set<number>();
   const stringifiedLineHeights = new Set<string>();
+  const autoLineHeights = new Set<number>();
   let hasTextSelected = false;
+  let hasSupportedFontSelected = false;
 
   figma.currentPage.selection.forEach((selectedNode) => {
     const textNode = resolveTextNodeFromSelectedNode(selectedNode);
 
     if (textNode) {
       hasTextSelected = true;
+
+      const fontSupported =
+        textNode.fontName !== figma.mixed &&
+        textNode.fontName.family in fontMetricsByFamilyName;
+
+      if (!fontSupported) {
+        return;
+      }
+
+      hasSupportedFontSelected = true;
 
       if (textNode.fontSize !== figma.mixed) {
         fontSizes.add(textNode.fontSize);
@@ -227,19 +238,35 @@ function getSelectionData() {
       if (textNode.lineHeight !== figma.mixed) {
         stringifiedLineHeights.add(stringifyLineHeight(textNode.lineHeight));
       }
+
+      if (
+        textNode.fontSize !== figma.mixed &&
+        textNode.lineHeight !== figma.mixed
+      ) {
+        const fontFamily =
+          textNode.fontName !== figma.mixed ? textNode.fontName.family : null;
+        if (fontFamily && fontFamily in fontMetricsByFamilyName) {
+          const { descent, ascent, lineGap, unitsPerEm } =
+            fontMetricsByFamilyName[fontFamily];
+          const absoluteDescent = Math.abs(descent);
+          const contentArea = ascent + lineGap + absoluteDescent;
+          const lineHeightScale = contentArea / unitsPerEm;
+          autoLineHeights.add(Math.round(lineHeightScale * textNode.fontSize));
+        }
+      }
     }
   });
 
-  const fontSize = fontSizes.size === 1 ? Array.from(fontSizes)[0] : undefined;
-  const lineHeight =
-    stringifiedLineHeights.size === 1
-      ? parseLineHeight(Array.from(stringifiedLineHeights)[0])
-      : undefined;
-
   return {
-    fontSize,
-    lineHeight,
+    fontSize: fontSizes.size === 1 ? Array.from(fontSizes)[0] : undefined,
+    lineHeight:
+      stringifiedLineHeights.size === 1
+        ? parseLineHeight(Array.from(stringifiedLineHeights)[0])
+        : undefined,
+    autoLineHeight:
+      autoLineHeights.size === 1 ? Array.from(autoLineHeights)[0] : undefined,
     hasTextSelected,
+    hasSupportedFontSelected,
   };
 }
 
@@ -258,11 +285,19 @@ export default function () {
   });
 
   figma.on("selectionchange", () => {
-    const { fontSize, lineHeight, hasTextSelected } = getSelectionData();
+    const {
+      fontSize,
+      lineHeight,
+      autoLineHeight,
+      hasTextSelected,
+      hasSupportedFontSelected,
+    } = getSelectionData();
     emit<SelectionChangedHandler>("SELECTION_CHANGED", {
       fontSize,
       lineHeight,
+      autoLineHeight,
       hasTextSelected,
+      hasSupportedFontSelected,
     });
   });
 

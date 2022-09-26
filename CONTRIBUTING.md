@@ -1,12 +1,12 @@
-## Development guide
+# Development guide
 
-### Pre-requisites
+This project requires:
 
 - [Node.js](https://nodejs.org)
 - [pnpm](https://pnpm.io/)
 - [Figma desktop app](https://figma.com/downloads/)
 
-### Build the plugin
+## Build the plugin
 
 To watch for code changes and rebuild the plugin automatically during development:
 
@@ -22,13 +22,13 @@ $ pnpm build
 
 This will generate a [`manifest.json`](https://figma.com/plugin-docs/manifest/) file and a `build` directory containing the JavaScript bundles for the plugin.
 
-### Install the plugin locally
+## Install the plugin locally
 
 1. In the Figma desktop app, open a Figma document.
 2. Open Quick Actions (`Cmd + P`) and run `Import plugin from manifest…`
 3. Select the generated `manifest.json` file.
 
-### Debugging
+## Debugging
 
 To open the developer console, search for and run `Open Console` via the Quick Actions search bar. Just like in a browser, you can use `console.log` statements to inspect values in your code.
 

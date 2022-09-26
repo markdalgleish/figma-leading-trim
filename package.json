@@ -1,4 +1,5 @@
 {
+  "version": "1.0.0",
   "dependencies": {
     "@capsizecss/core": "^3.0.0",
     "@create-figma-plugin/ui": "^2.1.2",

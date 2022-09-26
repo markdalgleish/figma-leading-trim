@@ -26,7 +26,16 @@
     ],
     "id": "1143761729202073143",
     "name": "Leading Trim",
-    "main": "src/main.ts",
-    "ui": "src/ui.tsx"
+    "menu": [
+      {
+        "name": "Show panel",
+        "main": "src/commands/showPanel/showPanel-main.ts",
+        "ui": "src/commands/showPanel/showPanel-ui.tsx"
+      },
+      {
+        "name": "Trim selection",
+        "main": "src/commands/trimSelection.ts"
+      }
+    ]
   }
 }

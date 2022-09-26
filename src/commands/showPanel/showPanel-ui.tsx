@@ -16,7 +16,7 @@ import {
   TrimSelectionHandler,
   UpdateFontSizeHandler,
   UpdateLineHeightHandler,
-} from "./types";
+} from "../../types";
 
 function stringifyLineHeight(lineHeight: LineHeight) {
   if (lineHeight.unit === "AUTO") {

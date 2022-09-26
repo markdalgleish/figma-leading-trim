@@ -1,4 +1,4 @@
-import { trimSelectedNodes } from "../core";
+import { trimSelectedNodes } from "../utils";
 
 export default async function () {
   await trimSelectedNodes();

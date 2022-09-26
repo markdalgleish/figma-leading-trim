@@ -3,7 +3,7 @@ import {
   trimSelectedNodes,
   resolveTextNodeFromSelectedNode,
   getFontMetricsForTextNode,
-} from "../../core";
+} from "../../utils";
 import {
   TrimSelectionHandler,
   UpdateFontSizeHandler,

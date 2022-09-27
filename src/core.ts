@@ -54,6 +54,20 @@ function resolveLineHeightFromTextNode(textNode: TextNode): number | undefined {
     : undefined;
 }
 
+function isNodeWithinFrame(node: BaseNode): boolean {
+  let parentNode: BaseNode | null = node.parent;
+
+  while (parentNode) {
+    if (parentNode.type === "FRAME") {
+      return true;
+    }
+
+    parentNode = parentNode.parent;
+  }
+
+  return false;
+}
+
 export async function trimSelectedNodes({
   fontSize,
   lineHeight,
@@ -161,7 +175,7 @@ export async function trimSelectedNodes({
       const frame = isFirstRun ? figma.createFrame() : (parent as FrameNode);
       markNodeAsOwned(frame);
 
-      frame.name = " "; // This ensures a frame name is not visible in the UI
+      frame.name = isNodeWithinFrame(textNode) ? "Leading Trim" : " "; // This ensures a frame name is not visible in the UI
       frame.fills = [];
       frame.clipsContent = false; // Allows ascenders/descenders to be visible
       frame.resize(textNode.width, textNode.height + marginTop + marginBottom);
